@@ -1,13 +1,13 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CreateBookingRequest(BaseModel):
-    room_id: int
+    room_id: int = Field(gt=0)
     start_time: datetime
     end_time: datetime
-    purpose: str
+    purpose: str = Field(min_length=1)
 
 
 class ExtendBookingRequest(BaseModel):
@@ -22,6 +22,6 @@ class BookingResponse(BaseModel):
     end_time: datetime
     purpose: str
 
-    model_config = {
-        "from_attributes": True
-    }
+
+class BookingListResponse(BaseModel):
+    bookings: list[BookingResponse]
