@@ -1,39 +1,46 @@
-from fastapi import HTTPException, status
+import asyncio
 
-from app.core.security import (
-    create_access_token,
-    verify_password
-)
+from pwdlib import PasswordHash
+
+from app.helpers.security import create_access_token
 from app.repositories.user_repository import UserRepository
 
 
 class AuthService:
 
+    password_hash = PasswordHash.recommended()
+
     def __init__(self, repository: UserRepository):
         self.repository = repository
 
-    async def login(
-        self,
-        email: str,
-        password: str
-    ):
+    @staticmethod
+    def hash_password(password: str):
+        return AuthService.password_hash.hash(password)
+
+    @staticmethod
+    def verify_password(password: str, hashed_password: str):
+        return AuthService.password_hash.verify(
+            password,
+            hashed_password
+        )
+
+    async def login(self, email: str, password: str):
         user = await self.repository.get_by_email(email)
 
         if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
-            )
+            return None
 
-        if not verify_password(password,user.hashed_password):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
-            )
+        valid_password = self.verify_password(
+            password,
+            user.hashed_password
+        )
 
-        access_token = create_access_token(user.id,user.role)
+        if not valid_password:
+            return None
 
-        return {
-            "access_token": access_token,
-            "token_type": "bearer"
-        }
+        token = create_access_token(
+            user.id,
+            user.role
+        )
+
+        return token

@@ -1,111 +1,118 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
 
-from app.core.dependencies import (
+from app.dependencies import (
+    get_current_user,
     get_user_service,
     require_admin
 )
-from app.models.users import Users
-from app.schemas.response import APIResponse
-from app.schemas.users import (
+from app.models.dto.response import APIResponse
+from app.models.dto.users import (
     CreateUserRequest,
-    UpdateUserRequest
+    UpdateUserRequest,
+    UserListResponse,
+    UserResponse
 )
 from app.services.user_service import UserService
 
 
-router = APIRouter(
-    prefix="/users",
-    tags=["Users"],
-    dependencies=[Depends(require_admin)]
-)
+router = APIRouter(prefix="/users", tags=["Users"])
 
 
-@router.post("",status_code=status.HTTP_201_CREATED,response_model=APIResponse)
-async def create_user(data: CreateUserRequest,service: UserService = Depends(get_user_service)):
-
+@router.post("", response_model=APIResponse)
+async def create_user(
+    data: CreateUserRequest,
+    service: UserService = Depends(get_user_service),
+    current_user=Depends(require_admin)
+):
     user = await service.create_user(data)
 
-    return {
-        "success": True,
-        "message": "User created successfully",
-        "data": {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "role": user.role
-        },
-        "errors": []
-    }
+    return APIResponse(
+        success=True,
+        message="User created successfully",
+        data=UserResponse(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            role=user.role
+        )
+    )
 
 
-@router.get("",status_code=status.HTTP_200_OK,response_model=APIResponse)
-async def get_users(service: UserService = Depends(get_user_service)):
+@router.get("", response_model=APIResponse)
+async def get_users(
+    service: UserService = Depends(get_user_service),
+    current_user=Depends(get_current_user)
+):
+    users = await service.get_users()
 
-    users = await service.get_all_users()
-
-    return {
-        "success": True,
-        "message": "Users retrieved successfully",
-        "data": {
-            "users": [
-                {
-                    "id": user.id,
-                    "name": user.name,
-                    "email": user.email,
-                    "role": user.role
-                }
+    return APIResponse(
+        success=True,
+        message="Users fetched successfully",
+        data=UserListResponse(
+            users=[
+                UserResponse(
+                    id=user.id,
+                    name=user.name,
+                    email=user.email,
+                    role=user.role
+                )
                 for user in users
             ]
-        },
-        "errors": []
-    }
+        )
+    )
 
 
-@router.get("/{user_id}",status_code=status.HTTP_200_OK,response_model=APIResponse)
-async def get_user(user_id: int,service: UserService = Depends(get_user_service)):
-
+@router.get("/{user_id}", response_model=APIResponse)
+async def get_user(
+    user_id: int,
+    service: UserService = Depends(get_user_service),
+    current_user=Depends(get_current_user)
+):
     user = await service.get_user(user_id)
 
-    return {
-        "success": True,
-        "message": "User retrieved successfully",
-        "data": {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "role": user.role
-        },
-        "errors": []
-    }
+    return APIResponse(
+        success=True,
+        message="User fetched successfully",
+        data=UserResponse(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            role=user.role
+        )
+    )
 
 
-@router.patch("/{user_id}",status_code=status.HTTP_200_OK,response_model=APIResponse)
-async def update_user(user_id: int,data: UpdateUserRequest,
-        service: UserService = Depends(get_user_service)):
-
+@router.put("/{user_id}", response_model=APIResponse)
+async def update_user(
+    user_id: int,
+    data: UpdateUserRequest,
+    service: UserService = Depends(get_user_service),
+    current_user=Depends(require_admin)
+):
     user = await service.update_user(user_id, data)
 
-    return {
-        "success": True,
-        "message": "User updated successfully",
-        "data": {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "role": user.role
-        },
-        "errors": []
-    }
+    return APIResponse(
+        success=True,
+        message="User updated successfully",
+        data=UserResponse(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            role=user.role
+        )
+    )
 
 
-@router.delete("/{user_id}",status_code=status.HTTP_200_OK,response_model=APIResponse)
-async def delete_user(user_id: int,service: UserService = Depends(get_user_service)):
-
+@router.delete("/{user_id}", response_model=APIResponse)
+async def delete_user(
+    user_id: int,
+    service: UserService = Depends(get_user_service),
+    current_user=Depends(require_admin)
+):
     await service.delete_user(user_id)
 
-    return {
-        "success": True,
-        "message": "User deleted successfully",
-        "data": {},
-        "errors": []
-    }
+    return APIResponse(
+        success=True,
+        message="User deleted successfully",
+        data=None
+    )

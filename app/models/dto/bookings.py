@@ -7,7 +7,7 @@ class CreateBookingRequest(BaseModel):
     room_id: int = Field(gt=0)
     start_time: datetime
     end_time: datetime
-    purpose: str = Field(min_length=1)
+    purpose: str = Field(min_length=1, max_length=255)
 
 
 class ExtendBookingRequest(BaseModel):
@@ -15,12 +15,12 @@ class ExtendBookingRequest(BaseModel):
 
 
 class BookingResponse(BaseModel):
-    id: int
-    room_id: int
-    user_id: int
+    id: int = Field(gt=0)
+    room_id: int = Field(gt=0)
+    user_id: int = Field(gt=0)
     start_time: datetime
     end_time: datetime
-    purpose: str
+    purpose: str = Field(min_length=1, max_length=255)
 
 
 class BookingListResponse(BaseModel):

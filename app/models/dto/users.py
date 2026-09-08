@@ -1,23 +1,25 @@
 from pydantic import BaseModel, EmailStr, Field
 
+from app.models.user_role import UserRole
+
 
 class CreateUserRequest(BaseModel):
-    name: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=100)
     email: EmailStr
-    role: str = Field(min_length=1)
-    password: str = Field(min_length=6)
+    role: UserRole
+    password: str = Field(min_length=6, max_length=128)
 
 
 class UpdateUserRequest(BaseModel):
-    name: str | None = Field(default=None, min_length=1)
-    role: str | None = Field(default=None, min_length=1)
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    role: UserRole | None = None
 
 
 class UserResponse(BaseModel):
-    id: int
-    name: str
-    email: str
-    role: str
+    id: int = Field(gt=0)
+    name: str = Field(min_length=1, max_length=100)
+    email: EmailStr
+    role: UserRole
 
 
 class UserListResponse(BaseModel):

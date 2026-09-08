@@ -3,11 +3,11 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
-from app.core.security import decode_token
-from app.models.users import Users
+from app.helpers.database import get_db
+from app.helpers.security import decode_token
+from app.models.db.users import Users
 
 from app.repositories.user_repository import UserRepository
 from app.repositories.room_repository import RoomRepository
@@ -23,19 +23,27 @@ oauth2_bearer = OAuth2PasswordBearer(
     tokenUrl="/api/v1/auth/token"
 )
 
+db_dependency = Annotated[
+    AsyncSession,
+    Depends(get_db)
+]
 
-db_dependency = Annotated[Session,Depends(get_db)]
 
-
-def get_user_repository(db: db_dependency):
+def get_user_repository(
+    db: db_dependency
+):
     return UserRepository(db)
 
 
-def get_user_service(repository=Depends(get_user_repository)):
+def get_user_service(
+    repository=Depends(get_user_repository)
+):
     return UserService(repository)
 
 
-def get_room_repository(db: db_dependency):
+async def get_room_repository(
+    db: db_dependency
+):
     return RoomRepository(db)
 
 
@@ -45,7 +53,9 @@ def get_room_service(
     return RoomService(repository)
 
 
-def get_booking_repository(db: db_dependency):
+def get_booking_repository(
+    db: db_dependency
+):
     return BookingRepository(db)
 
 
@@ -65,7 +75,10 @@ def get_auth_service(
     return AuthService(repository)
 
 
-def get_current_user(token: Annotated[str, Depends(oauth2_bearer)],repository=Depends(get_user_repository)):
+async def get_current_user(
+    token: Annotated[str, Depends(oauth2_bearer)],
+    repository=Depends(get_user_repository)
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid authentication credentials"
@@ -84,7 +97,7 @@ def get_current_user(token: Annotated[str, Depends(oauth2_bearer)],repository=De
     except (JWTError, ValueError):
         raise credentials_exception
 
-    user = repository.get_by_id(user_id)
+    user = await repository.get_by_id(user_id)
 
     if user is None:
         raise credentials_exception
@@ -92,7 +105,9 @@ def get_current_user(token: Annotated[str, Depends(oauth2_bearer)],repository=De
     return user
 
 
-def require_admin(current_user: Users = Depends(get_current_user)):
+def require_admin(
+    current_user: Users = Depends(get_current_user)
+):
     if current_user.role != "ADMIN":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

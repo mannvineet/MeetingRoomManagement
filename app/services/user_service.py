@@ -1,95 +1,70 @@
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 
-from app.core.security import hash_password
-from app.models.users import Users
-from app.repositories.user_repository import UserRepository
-from app.schemas.users import (
-    CreateUserRequest,
-    UpdateUserRequest
-)
+from app.models.user_role import UserRole
+from app.services.auth_service import AuthService
+from app.models.db.users import Users
 
 
 class UserService:
-
-    def __init__(self, repository: UserRepository):
+    def __init__(self, repository):
         self.repository = repository
 
-    async def create_user(self,data: CreateUserRequest):
-        existing_user = await self.repository.get_by_email(data.email)
+    async def create_user(self, data):
+        if not data.name.strip():
+            raise HTTPException(400, "Name is required")
 
-        if existing_user:
+        if not data.email.strip():
+            raise HTTPException(400, "Email is required")
+
+        if len(data.password) < 6:
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Email already registered"
+                400,
+                "Password must be at least 6 characters"
             )
 
-        if data.role not in ["ADMIN", "USER"]:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Invalid role"
-            )
+        if data.role not in [role.value for role in UserRole]:
+            raise HTTPException(400, "Invalid role")
+
+        if await self.repository.get_by_email(data.email):
+            raise HTTPException(409, "Email already exists")
 
         user = Users(
             name=data.name,
             email=data.email,
             role=data.role,
-            hashed_password=hash_password(data.password)
+            hashed_password=AuthService.hash_password(data.password)
         )
 
-        await self.repository.create(user)
-        await self.repository.db.commit()
-        await self.repository.db.refresh(user)
+        return await self.repository.create(user)
 
-        return user
-
-    async def get_all_users(self):
+    async def get_users(self):
         return await self.repository.get_all()
 
     async def get_user(self, user_id: int):
         user = await self.repository.get_by_id(user_id)
 
         if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
+            raise HTTPException(404, "User not found")
 
         return user
 
-    async def update_user(self,user_id: int,data: UpdateUserRequest):
-        user = await self.repository.get_by_id(user_id)
+    async def update_user(self, user_id: int, data):
+        user = await self.get_user(user_id)
 
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
+        if data.name is not None:
+            if not data.name.strip():
+                raise HTTPException(400, "Name is required")
+
+            user.name = data.name
 
         if data.role is not None:
-            if data.role not in ["ADMIN", "USER"]:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid role"
-                )
+            if data.role not in [role.value for role in UserRole]:
+                raise HTTPException(400, "Invalid role")
 
             user.role = data.role
 
-        if data.name is not None:
-            user.name = data.name
-
-        await self.repository.db.commit()
-        await self.repository.db.refresh(user)
-
-        return user
+        return await self.repository.update(user)
 
     async def delete_user(self, user_id: int):
-        user = await self.repository.get_by_id(user_id)
-
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
-
+        user = await self.get_user(user_id)
         await self.repository.delete(user)
-        await self.repository.db.commit()

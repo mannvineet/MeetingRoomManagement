@@ -5,7 +5,10 @@ from fastapi.responses import JSONResponse
 from app.models.dto.response import APIResponse, ErrorResponse
 
 
-def handle_http_exception(request: Request, exc: HTTPException):
+def handle_http_exception(
+    request: Request,
+    exc: HTTPException
+):
     response = APIResponse(
         success=False,
         message=str(exc.detail),
@@ -24,11 +27,16 @@ def handle_http_exception(request: Request, exc: HTTPException):
     )
 
 
-def handle_validation_error(request: Request, exc: RequestValidationError):
+def handle_validation_error(
+    request: Request,
+    exc: RequestValidationError
+):
     errors = []
 
     for error in exc.errors():
-        field = ".".join(str(value) for value in error["loc"])
+        field = ".".join(
+            str(value) for value in error["loc"]
+        )
         field = field.removeprefix("body.")
 
         if error["type"] == "json_invalid":
@@ -53,7 +61,9 @@ def handle_validation_error(request: Request, exc: RequestValidationError):
                 )
             )
 
-    status_code = max(error.code for error in errors)
+    status_code = max(
+        error.code for error in errors
+    )
 
     response = APIResponse(
         success=False,
